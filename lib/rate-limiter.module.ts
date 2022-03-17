@@ -1,7 +1,8 @@
-import { Module, DynamicModule, Provider } from '@nestjs/common'
+import { Module, DynamicModule, Provider, Global } from '@nestjs/common'
 import { defaultRateLimiterOptions } from './default-options'
 import { RateLimiterOptions, RateLimiterModuleAsyncOptions, RateLimiterOptionsFactory } from './rate-limiter.interface'
 
+@Global()
 @Module({
 	exports: ['RATE_LIMITER_OPTIONS'],
 	providers: [{ provide: 'RATE_LIMITER_OPTIONS', useValue: defaultRateLimiterOptions }]
