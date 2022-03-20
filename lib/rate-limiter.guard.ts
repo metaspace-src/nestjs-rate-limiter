@@ -151,6 +151,12 @@ export class RateLimiterGuard implements CanActivate {
 		let pointsConsumed: number = this.specificOptions?.pointsConsumed || this.options.pointsConsumed
 
 		const reflectedOptions: RateLimiterOptions = this.reflector.get<RateLimiterOptions>('rateLimit', context.getHandler())
+		
+		const request = this.httpHandler(context).req
+		const response = this.httpHandler(context).res
+
+		let key: string = this.getIpFromRequest(request)
+		let options: RateLimiterOptions = reflectedOptions
 
 		if (reflectedOptions) {
 			if (reflectedOptions.points) {
@@ -160,19 +166,13 @@ export class RateLimiterGuard implements CanActivate {
 			if (reflectedOptions.pointsConsumed) {
 				pointsConsumed = reflectedOptions.pointsConsumed
 			}
-		}
 
-		const request = this.httpHandler(context).req
-		const response = this.httpHandler(context).res
-
-		let key: string = this.getIpFromRequest(request)
-		let options: RateLimiterOptions = reflectedOptions;
-
-		if (reflectedOptions.optionsFactory(request)) {
-			options = reflectedOptions.optionsFactory(request)
-			points = options.points
-			key = options.keyPrefix
-			pointsConsumed = options.pointsConsumed
+			if (reflectedOptions.hasOwnProperty('optionsFactory')) {
+				options = reflectedOptions.optionsFactory(request)
+				points = options.points
+				key = options.keyPrefix
+				pointsConsumed = options.pointsConsumed
+			}
 		}
 
 		const rateLimiter: RateLimiterAbstract = await this.getRateLimiter(options)
@@ -181,7 +181,7 @@ export class RateLimiterGuard implements CanActivate {
 	}
 
 	protected getIpFromRequest(request: { ip: string }): string {
-	        return request.ip?.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/)?.[0]
+		return request.ip?.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/)?.[0]
 	}
 
 	private httpHandler(context: ExecutionContext) {
@@ -219,6 +219,7 @@ export class RateLimiterGuard implements CanActivate {
 					this.setResponseHeaders(response, points, rateLimiterResponse)
 			}
 		} catch (rateLimiterResponse) {
+			Logger.error(rateLimiterResponse)
 			response.header('Retry-After', Math.ceil(rateLimiterResponse.msBeforeNext / 1000))
 			if (typeof this.specificOptions?.customResponseSchema === 'function' || typeof this.options.customResponseSchema === 'function') {
 				const errorBody = this.specificOptions?.customResponseSchema || this.options.customResponseSchema
